@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101419">
+  <title>Simulasi Ruang Bakar 3D</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101419;
+      --panel: #181e25;
+      --panel-raised: #202832;
+      --border: #303b47;
+      --muted: #9ba8b7;
+      --text: #f2f5f8;
+      --cyan: #55d8db;
+      --orange: #ff9b58;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; color: var(--text); background: radial-gradient(ellipse at 52% -20%, #24333d 0, var(--bg) 58%); }
+    button, input { font: inherit; }
+    .app { width: min(1480px, 100%); margin: 0 auto; padding: 28px clamp(16px, 3vw, 42px) 32px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+    .eyebrow { color: var(--cyan); font-size: 11px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 5px 0 0; font-size: clamp(22px, 4vw, 33px); letter-spacing: -.04em; }
+    .status { display: flex; align-items: center; gap: 9px; color: #c8d3de; font-size: 13px; }
+    .status::before { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 14px #55d8db88; content: ""; }
+    .site-nav { position: sticky; top: 10px; z-index: 5; display: flex; flex-wrap: wrap; gap: 5px; width: fit-content; margin: 0 0 18px; padding: 6px; border: 1px solid var(--border); border-radius: 11px; background: #131920ed; box-shadow: 0 10px 24px #0003; backdrop-filter: blur(12px); }
+    .site-nav a { padding: 8px 11px; border-radius: 7px; color: #c4ced7; font-size: 12px; text-decoration: none; white-space: nowrap; }
+    .site-nav a:hover, .site-nav a:focus-visible { outline: none; background: #202832; color: var(--cyan); }
+    [id="simulasi"], [id="parameter"], [id="monitor"], [id="siklus"] { scroll-margin-top: 88px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, .82fr); gap: 18px; align-items: start; }
+    .panel { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 15px; background: linear-gradient(155deg, #1b222b, #151a20 72%); box-shadow: 0 18px 52px #0003; }
+    .stage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 19px 0; }
+    .stage-title { font-size: 13px; font-weight: 680; }
+    .drag-hint { color: var(--muted); font-size: 11px; }
+    .stage-actions { display: flex; align-items: center; gap: 13px; }
+    .download-model { padding: 7px 9px; border: 1px solid #394550; border-radius: 8px; background: #202832; color: #c7f0ee; font-size: 11px; text-decoration: none; }
+    .download-model:hover { border-color: var(--cyan); }
+    .canvas-wrap { position: relative; min-height: 350px; height: clamp(360px, 52vw, 580px); }
+    #scene { display: block; width: 100%; height: 100%; touch-action: none; }
+    .phase-tag { position: absolute; top: 17px; left: 19px; padding: 7px 10px; border: 1px solid #43515d; border-radius: 999px; background: #12171dcc; color: #dce5ed; font-size: 11px; }
+    .angle-tag { position: absolute; top: 17px; right: 19px; color: #aebbc7; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .live-monitor { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; padding: 12px; border-top: 1px solid var(--border); background: #151b22; }
+    .live-monitor-title { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #dce5ed; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .live-monitor-title::after { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 9px #55d8db88; content: ""; }
+    .monitor-main { min-width: 0; padding: 9px 10px; border: 1px solid #30404a; border-radius: 8px; background: #182128; }
+    .monitor-main-label { color: var(--muted); font-size: 10px; }
+    .monitor-main-value { margin-top: 5px; color: var(--cyan); font-size: 21px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .monitor-main-value span { color: #abb6c1; font-size: 10px; font-weight: 450; }
+    .monitor-flows { display: contents; }
+    .monitor-flow { min-width: 0; padding: 9px 10px; border: 1px solid #2c3741; border-radius: 8px; background: #141a20; }
+    .monitor-flow-title { margin-bottom: 6px; color: #cbd5df; font-size: 10px; font-weight: 650; }
+    .monitor-flow-row { display: flex; justify-content: space-between; gap: 5px; margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .monitor-flow-row strong { color: var(--text); font-size: 10px; font-variant-numeric: tabular-nums; }
+    .scene-error { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 32px; color: #ffb49e; text-align: center; }
+    .effects-legend { position: absolute; bottom: 15px; left: 17px; display: flex; flex-wrap: wrap; gap: 8px 13px; color: #c4ced7; font-size: 10px; pointer-events: none; }
+    .effect-key { display: inline-flex; align-items: center; gap: 5px; }
+    .effect-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .controls { padding: 21px 20px 20px; }
+    .section-title { margin: 0 0 18px; font-size: 14px; font-weight: 700; }
+    .input-row { margin-bottom: 19px; }
+    .label-line { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: #d8e0e7; font-size: 12px; }
+    .unit { color: var(--muted); }
+    .value-wrap { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #12171d; }
+    .value-wrap input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); font-variant-numeric: tabular-nums; }
+    .value-wrap:focus-within { border-color: var(--cyan); }
+    input[type="range"] { width: 100%; height: 4px; margin: 8px 0 0; accent-color: var(--cyan); cursor: pointer; }
+    input[type="number"] { appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { margin: 0; appearance: none; }
+    .slider-hint { display: flex; justify-content: space-between; margin-top: 4px; color: #73808d; font-size: 10px; }
+    .calc-divider { height: 1px; margin: 20px 0; background: var(--border); }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .metric { min-width: 0; padding: 12px; border: 1px solid #2c3741; border-radius: 9px; background: #141a20; }
+    .metric-label { color: var(--muted); font-size: 10px; }
+    .metric-value { margin-top: 7px; font-size: clamp(17px, 2.2vw, 23px); font-weight: 720; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+    .metric-unit { color: #abb6c1; font-size: 11px; font-weight: 450; letter-spacing: 0; }
+    .metric.emphasis .metric-value { color: var(--cyan); }
+    .pressure-chart { grid-column: 1 / -1; margin: 0; padding: 8px 10px; border: 1px solid #2c3741; border-radius: 7px; background: #141a20; }
+    .pressure-chart-title { display: flex; justify-content: space-between; gap: 10px; color: #cbd5df; font-size: 10px; }
+    .pressure-chart-title span:last-child { color: var(--muted); }
+    .pressure-chart svg { display: block; width: 100%; height: 65px; margin-top: 5px; overflow: visible; }
+    .pressure-grid { stroke: #303b47; stroke-width: 1; }
+    .pressure-line { fill: none; stroke: var(--orange); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .pressure-cursor { stroke: #f2f5f8; stroke-width: 1; stroke-dasharray: 3 3; }
+    .pressure-point { fill: #fff; stroke: var(--orange); stroke-width: 2; }
+    .pressure-axis { fill: #73808d; font-size: 8px; }
+    .controls-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 15px; }
+    .btn { min-height: 36px; padding: 0 12px; border: 1px solid #394550; border-radius: 8px; background: var(--panel-raised); color: var(--text); font-size: 12px; cursor: pointer; }
+    .btn:hover { border-color: #718392; }
+    .btn-primary { border-color: #328e93; background: #1b4145; }
+    .speed-control { display: flex; flex: 1; min-width: 120px; align-items: center; gap: 8px; margin-left: 4px; color: var(--muted); font-size: 11px; }
+    .speed-control input { flex: 1; min-width: 60px; }
+    .footnote { margin: 16px 1px 0; color: #8c98a5; font-size: 11px; line-height: 1.6; }
+    .engine-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 18px; overflow: hidden; border: 1px solid var(--border); border-radius: 11px; background: var(--border); }
+    .engine-step { padding: 12px 14px; background: #181e25; color: #98a5b2; font-size: 11px; }
+    .engine-step.active { background: #1a3237; color: #b9eff0; }
+    .step-num { display: block; margin-bottom: 5px; color: #6f7c88; font-size: 10px; letter-spacing: .12em; }
+    .engine-step.active .step-num { color: var(--cyan); }
+    @media (max-width: 850px) {
+      .layout { grid-template-columns: 1fr; }
+      .canvas-wrap { height: clamp(350px, 80vw, 550px); }
+    }
+    @media (max-width: 440px) {
+      .app { padding-top: 19px; }
+      .status { font-size: 11px; }
+      .site-nav { width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+      .site-nav a { padding: 8px 9px; }
+      .stage-head { align-items: flex-start; flex-direction: column; }
+      .stage-actions { align-items: flex-start; flex-direction: column; gap: 9px; }
+      .canvas-wrap { min-height: 320px; height: 380px; }
+      .controls { padding: 18px 15px; }
+      .engine-step { padding: 10px 8px; font-size: 10px; }
+      .live-monitor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .monitor-main { grid-column: 1 / -1; }
+      .pressure-chart { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <div class="eyebrow">Laboratorium mesin · model edukasi</div>
+        <h1>Simulasi Ruang Bakar 3D</h1>
+      </div>
+      <div class="status">Model geometris ideal</div>
+    </header>
+
+    <nav class="site-nav" aria-label="Navigasi utama">
+      <a href="http://localhost:8000">Simulasi 3D</a>
+      <a href="#parameter">Parameter</a>
+      <a href="#monitor">Monitor realtime</a>
+      <a href="#siklus">Tahapan siklus</a>
+    </nav>
+
+    <div class="layout">
+      <section id="simulasi" class="panel" aria-label="Visualisasi silinder 3D">
+        <div class="stage-head">
+          <div class="stage-title">Model 3D rakitan mesin</div>
+          <div class="stage-actions">
+            <div class="drag-hint">Seret untuk memutar tampilan</div>
+            <a class="download-model" href="model/ruang-bakar-3d.glb" download="ruang-bakar-3d.glb">↓ Unduh model 3D (.glb)</a>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="scene" aria-label="Model 3D rakitan mesin dari berkas GLB"></canvas>
+          <div id="phaseTag" class="phase-tag">Langkah hisap</div>
+          <div id="angleTag" class="angle-tag">0° / 720°</div>
+          <div class="effects-legend" aria-label="Legenda efek gas dan pembakaran">
+            <span class="effect-key"><span class="effect-dot" style="background:#267bff"></span>Campuran masuk</span>
+            <span class="effect-key"><span class="effect-dot" style="background:#ff7138"></span>Pembakaran</span>
+            <span class="effect-key"><span class="effect-dot" style="background:#111719;border:1px solid #738087"></span>Gas buang</span>
+          </div>
+          <div id="sceneError" class="scene-error">WebGL tidak tersedia di browser ini. Coba gunakan browser modern yang mendukung WebGL.</div>
+        </div>
+        <section id="monitor" class="live-monitor" aria-label="Monitor realtime mesin">
+          <div class="live-monitor-title">Monitor realtime</div>
+          <div class="monitor-main">
+            <div class="monitor-main-label">Tekanan ruang bakar</div>
+            <div class="monitor-main-value"><span id="cylinderPressure">1.01</span> <span>bar abs</span></div>
+          </div>
+          <div class="monitor-flows">
+            <div class="monitor-flow">
+              <div class="monitor-flow-title">Masuk</div>
+              <div class="monitor-flow-row"><span>Tekanan</span><strong><span id="intakePressure">1.01</span> bar</strong></div>
+              <div class="monitor-flow-row"><span>Kecepatan</span><strong><span id="intakeVelocity">0.0</span> m/s</strong></div>
+            </div>
+            <div class="monitor-flow">
+              <div class="monitor-flow-title">Buang</div>
+              <div class="monitor-flow-row"><span>Tekanan</span><strong><span id="exhaustPressure">1.01</span> bar</strong></div>
+              <div class="monitor-flow-row"><span>Kecepatan</span><strong><span id="exhaustVelocity">0.0</span> m/s</strong></div>
+            </div>
+          </div>
+          <div class="pressure-chart">
+            <div class="pressure-chart-title"><span>Tekanan · 720°</span><span id="pressureScale">bar abs</span></div>
+            <svg viewBox="0 0 320 96" role="img" aria-label="Grafik tekanan ruang bakar terhadap sudut siklus">
+              <line class="pressure-grid" x1="22" y1="14" x2="316" y2="14"></line>
+              <line class="pressure-grid" x1="22" y1="48" x2="316" y2="48"></line>
+              <line class="pressure-grid" x1="22" y1="82" x2="316" y2="82"></line>
+              <path id="pressureCurve" class="pressure-line" d=""></path>
+              <line id="pressureCursor" class="pressure-cursor" x1="22" y1="12" x2="22" y2="84"></line>
+              <circle id="pressurePoint" class="pressure-point" cx="22" cy="82" r="3"></circle>
+              <text class="pressure-axis" x="1" y="17">maks</text>
+              <text class="pressure-axis" x="8" y="84">0</text>
+              <text class="pressure-axis" x="22" y="95">0°</text>
+              <text class="pressure-axis" x="159" y="95">360°</text>
+              <text class="pressure-axis" x="292" y="95">720°</text>
+            </svg>
+          </div>
+        </section>
+      </section>
+
+      <section id="parameter" class="panel controls" aria-labelledby="controlsTitle">
+        <h2 id="controlsTitle" class="section-title">Parameter mesin</h2>
+
+        <div class="input-row">
+          <div class="label-line"><label for="bore">Diameter silinder (bore)</label><span class="unit">mm</span></div>
+          <div class="value-wrap"><input id="bore" type="number" min="40" max="160" step="1" value="86" aria-label="Diameter silinder dalam milimeter"></div>
+          <input id="boreRange" type="range" min="40" max="160" step="1" value="86" aria-label="Atur diameter silinder">
+          <div class="slider-hint"><span>40 mm</span><span>160 mm</span></div>
+        </div>
+
+        <div class="input-row">
+          <div class="label-line"><label for="stroke">Langkah piston (stroke)</label><span class="unit">mm</span></div>
+          <div class="value-wrap"><input id="stroke" type="number" min="40" max="160" step="1" value="86" aria-label="Langkah piston dalam milimeter"></div>
+          <input id="strokeRange" type="range" min="40" max="160" step="1" value="86" aria-label="Atur langkah piston">
+          <div class="slider-hint"><span>40 mm</span><span>160 mm</span></div>
+        </div>
+
+        <div class="input-row">
+          <div class="label-line"><label for="clearance">Volume ruang sisa (clearance)</label><span class="unit">cm³</span></div>
+          <div class="value-wrap"><input id="clearance" type="number" min="2" max="200" step="0.1" value="50" aria-label="Volume ruang sisa dalam sentimeter kubik"></div>
+          <input id="clearanceRange" type="range" min="2" max="200" step="0.1" value="50" aria-label="Atur volume ruang sisa">
+          <div class="slider-hint"><span>2 cm³</span><span>200 cm³</span></div>
+        </div>
+
+        <div class="input-row">
+          <div class="label-line"><label for="afr">Rasio udara : bahan bakar (AFR)</label><span class="unit">massa : 1</span></div>
+          <div class="value-wrap"><input id="afr" type="number" min="8" max="22" step="0.1" value="14.7" aria-label="Rasio massa udara terhadap bahan bakar"></div>
+          <input id="afrRange" type="range" min="8" max="22" step="0.1" value="14.7" aria-label="Atur rasio udara terhadap bahan bakar">
+          <div class="slider-hint"><span>8 : 1 (kaya)</span><span>22 : 1 (miskin)</span></div>
+        </div>
+
+        <div class="input-row">
+          <div class="label-line"><label for="rpm">Putaran mesin</label><span class="unit">RPM</span></div>
+          <div class="value-wrap"><input id="rpm" type="number" min="500" max="10000" step="100" value="3000" aria-label="Putaran mesin dalam RPM"></div>
+          <input id="rpmRange" type="range" min="500" max="10000" step="100" value="3000" aria-label="Atur putaran mesin">
+          <div class="slider-hint"><span>500 RPM</span><span>10.000 RPM</span></div>
+        </div>
+
+        <div class="input-row">
+          <div class="label-line"><label for="intakeDiameter">Diameter katup / port masuk</label><span class="unit">mm</span></div>
+          <div class="value-wrap"><input id="intakeDiameter" type="number" min="20" max="50" step="1" value="32" aria-label="Diameter katup masuk dalam milimeter"></div>
+          <input id="intakeDiameterRange" type="range" min="20" max="50" step="1" value="32" aria-label="Atur diameter katup masuk">
+          <div class="slider-hint"><span>20 mm</span><span>50 mm</span></div>
+        </div>
+
+        <div class="input-row">
+          <div class="label-line"><label for="exhaustDiameter">Diameter katup / port buang</label><span class="unit">mm</span></div>
+          <div class="value-wrap"><input id="exhaustDiameter" type="number" min="18" max="45" step="1" value="28" aria-label="Diameter katup buang dalam milimeter"></div>
+          <input id="exhaustDiameterRange" type="range" min="18" max="45" step="1" value="28" aria-label="Atur diameter katup buang">
+          <div class="slider-hint"><span>18 mm</span><span>45 mm</span></div>
+        </div>
+
+        <div class="calc-divider"></div>
+        <div class="metrics" aria-live="polite">
+          <div class="metric"><div class="metric-label">Volume langkah / silinder</div><div class="metric-value"><span id="displacement">499.6</span> <span class="metric-unit">cm³</span></div></div>
+          <div class="metric"><div class="metric-label">Volume total / silinder</div><div class="metric-value"><span id="totalVolume">549.6</span> <span class="metric-unit">cm³</span></div></div>
+          <div class="metric emphasis"><div class="metric-label">Rasio kompresi</div><div class="metric-value"><span id="compression">11.0</span><span class="metric-unit"> : 1</span></div></div>
+          <div class="metric"><div class="metric-label">Volume sesaat</div><div class="metric-value"><span id="instantVolume">549.6</span> <span class="metric-unit">cm³</span></div></div>
+          <div class="metric"><div class="metric-label">Energi bahan bakar / siklus</div><div class="metric-value"><span id="fuelEnergy">1.50</span> <span class="metric-unit">kJ</span></div></div>
+          <div class="metric"><div class="metric-label">Kerja berguna / siklus</div><div class="metric-value"><span id="usefulWork">375</span> <span class="metric-unit">J</span></div></div>
+          <div class="metric emphasis"><div class="metric-label">Daya teoritis / silinder</div><div class="metric-value"><span id="estimatedPower">9.4</span> <span class="metric-unit">kW</span></div></div>
+        </div>
+
+        <div class="controls-bar">
+          <button id="playButton" class="btn btn-primary" type="button" aria-pressed="false">▶ Mulai</button>
+          <button id="resetButton" class="btn" type="button">Atur ulang</button>
+          <label class="speed-control" for="speed"><span>Kecepatan</span><input id="speed" type="range" min="0.15" max="2.5" step="0.05" value="0.8"><span id="speedValue">0.8×</span></label>
+        </div>
+        <p class="footnote">Tekanan dan kecepatan port adalah estimasi 1D, bukan pembacaan sensor: aliran dihitung dari gerak piston, RPM, luas port, dan luas tirai katup (lift ideal 6,5 mm; koefisien aliran 0,72). Model tidak menyelesaikan dinamika fluida, gelombang tekanan, atau aliran balik; tekanan masuk/buang dibatasi model sederhana terhadap atmosfer.</p>
+      </section>
+    </div>
+
+    <section id="siklus" class="engine-strip" aria-label="Tahapan siklus empat langkah">
+      <div class="engine-step active" data-step="0"><span class="step-num">01 · 0–180°</span>Hisap</div>
+      <div class="engine-step" data-step="1"><span class="step-num">02 · 180–360°</span>Kompresi</div>
+      <div class="engine-step" data-step="2"><span class="step-num">03 · 360–540°</span>Usaha</div>
+      <div class="engine-step" data-step="3"><span class="step-num">04 · 540–720°</span>Buang</div>
+    </section>
+  </main>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const canvas = document.getElementById("scene");
+    const gl = canvas.getContext("webgl", { alpha: true, antialias: true });
+    const sceneError = document.getElementById("sceneError");
+    if (!gl) {
+      sceneError.style.display = "flex";
+      return;
+    }
+    sceneError.textContent = "Memuat model GLB...";
+    sceneError.style.display = "flex";
+
+    const vertexShaderSource = `
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      uniform mat4 uMvp;
+      uniform mat4 uModel;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      void main() {
+        vec4 world = uModel * vec4(aPosition, 1.0);
+        vPosition = world.xyz;
+        vNormal = mat3(uModel) * aNormal;
+        gl_Position = uMvp * world;
+      }
+    `;
+    const fragmentShaderSource = `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform vec3 uLight;
+      uniform float uAlpha;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      void main() {
+        vec3 n = normalize(vNormal);
+        vec3 l = normalize(uLight - vPosition);
+        float diffuse = max(dot(n, l), 0.0);
+        float light = 0.36 + 0.72 * diffuse;
+        gl_FragColor = vec4(uColor * light, uAlpha);
+      }
+    `;
+
+    function compileShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const message = gl.getShaderInfoLog(shader) || "Shader tidak dapat dikompilasi.";
+        gl.deleteShader(shader);
+        throw new Error(message);
+      }
+      return shader;
+    }
+
+    let program;
+    try {
+      program = gl.createProgram();
+      gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vertexShaderSource));
+      gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fragmentShaderSource));
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(program) || "Program WebGL tidak dapat dijalankan.");
+      }
+    } catch (error) {
+      sceneError.textContent = "Visualisasi 3D gagal dimulai: " + error.message;
+      sceneError.style.display = "flex";
+      return;
+    }
+
+    gl.useProgram(program);
+    const locations = {
+      position: gl.getAttribLocation(program, "aPosition"),
+      normal: gl.getAttribLocation(program, "aNormal"),
+      mvp: gl.getUniformLocation(program, "uMvp"),
+      model: gl.getUniformLocation(program, "uModel"),
+      color: gl.getUniformLocation(program, "uColor"),
+      light: gl.getUniformLocation(program, "uLight"),
+      alpha: gl.getUniformLocation(program, "uAlpha")
+    };
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
+
+    function perspective(fov, aspect, near, far) {
+      const f = 1 / Math.tan(fov / 2);
+      const nf = 1 / (near - far);
+      return new Float32Array([
+        f / aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (far + near) * nf, -1,
+        0, 0, 2 * far * near * nf, 0
+      ]);
+    }
+
+    function lookAt(eye, target, up) {
+      const z = normalize(subtract(eye, target));
+      const x = normalize(cross(up, z));
+      const y = cross(z, x);
+      return new Float32Array([
+        x[0], y[0], z[0], 0,
+        x[1], y[1], z[1], 0,
+        x[2], y[2], z[2], 0,
+        -dot(x, eye), -dot(y, eye), -dot(z, eye), 1
+      ]);
+    }
+
+    function multiply(a, b) {
+      const out = new Float32Array(16);
+      for (let col = 0; col < 4; col++) {
+        for (let row = 0; row < 4; row++) {
+          out[col * 4 + row] =
+            a[row] * b[col * 4] +
+            a[4 + row] * b[col * 4 + 1] +
+            a[8 + row] * b[col * 4 + 2] +
+            a[12 + row] * b[col * 4 + 3];
+        }
+      }
+      return out;
+    }
+
+    function subtract(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+    function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+    function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+    function normalize(a) {
+      const length = Math.hypot(a[0], a[1], a[2]) || 1;
+      return [a[0] / length, a[1] / length, a[2] / length];
+    }
+
+    function translation(x, y, z) {
+      return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]);
+    }
+
+    function scaling(x, y, z) {
+      return new Float32Array([x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1]);
+    }
+
+    function sampleAnimationTrack(track, time) {
+      const last = track.times.length - 1;
+      let next = track.times.findIndex(keyTime => keyTime >= time);
+      if (next < 0) next = last;
+      if (next === 0 || track.interpolation === "STEP" || track.times[next] === time) {
+        return track.values.slice(next * (track.path === "rotation" ? 4 : 3), (next + 1) * (track.path === "rotation" ? 4 : 3));
+      }
+
+      const width = track.path === "rotation" ? 4 : 3;
+      const previous = next - 1;
+      const fraction = (time - track.times[previous]) / (track.times[next] - track.times[previous]);
+      const from = track.values.slice(previous * width, (previous + 1) * width);
+      const to = track.values.slice(next * width, (next + 1) * width);
+      if (track.path !== "rotation") {
+        return from.map((value, index) => value + (to[index] - value) * fraction);
+      }
+
+      let cosine = from.reduce((sum, value, index) => sum + value * to[index], 0);
+      if (cosine < 0) {
+        cosine = -cosine;
+        to.forEach((value, index) => { to[index] = -value; });
+      }
+      if (cosine > 0.9995) {
+        const quaternion = from.map((value, index) => value + (to[index] - value) * fraction);
+        const length = Math.hypot(...quaternion);
+        return quaternion.map(value => value / length);
+      }
+      const angle = Math.acos(Math.min(1, cosine));
+      const sine = Math.sin(angle);
+      const fromWeight = Math.sin((1 - fraction) * angle) / sine;
+      const toWeight = Math.sin(fraction * angle) / sine;
+      return from.map((value, index) => value * fromWeight + to[index] * toWeight);
+    }
+
+    function nodeMatrix(node) {
+      if (node.matrix) return new Float32Array(node.matrix);
+      const [x, y, z, w] = node.rotation || [0, 0, 0, 1];
+      const [sx, sy, sz] = node.scale || [1, 1, 1];
+      const [tx, ty, tz] = node.translation || [0, 0, 0];
+      const rotation = new Float32Array([
+        (1 - 2 * (y * y + z * z)) * sx, (2 * (x * y + z * w)) * sx, (2 * (x * z - y * w)) * sx, 0,
+        (2 * (x * y - z * w)) * sy, (1 - 2 * (x * x + z * z)) * sy, (2 * (y * z + x * w)) * sy, 0,
+        (2 * (x * z + y * w)) * sz, (2 * (y * z - x * w)) * sz, (1 - 2 * (x * x + y * y)) * sz, 0,
+        tx, ty, tz, 1
+      ]);
+      return rotation;
+    }
+
+    async function loadGlb(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`GLB tidak dapat dimuat (${response.status}).`);
+      const bytes = await response.arrayBuffer();
+      const header = new DataView(bytes);
+      if (header.byteLength < 20 || header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2) {
+        throw new Error("Berkas model bukan GLB glTF 2.0 yang valid.");
+      }
+
+      let json = null, binary = null, offset = 12;
+      while (offset + 8 <= header.byteLength) {
+        const length = header.getUint32(offset, true);
+        const type = header.getUint32(offset + 4, true);
+        const start = offset + 8;
+        if (start + length > header.byteLength) throw new Error("Chunk GLB terpotong.");
+        if (type === 0x4e4f534a) {
+          json = JSON.parse(new TextDecoder().decode(new Uint8Array(bytes, start, length)).trim());
+        } else if (type === 0x004e4942) {
+          binary = new DataView(bytes, start, length);
+        }
+        offset = start + length;
+      }
+      if (!json || !binary || !json.buffers?.[0] || json.buffers[0].byteLength > binary.byteLength) {
+        throw new Error("GLB tidak memiliki data geometri yang dapat dibaca.");
+      }
+
+      const componentInfo = {
+        5120: { size: 1, read: (view, at) => view.getInt8(at), max: 127 },
+        5121: { size: 1, read: (view, at) => view.getUint8(at), max: 255 },
+        5122: { size: 2, read: (view, at) => view.getInt16(at, true), max: 32767 },
+        5123: { size: 2, read: (view, at) => view.getUint16(at, true), max: 65535 },
+        5125: { size: 4, read: (view, at) => view.getUint32(at, true), max: 4294967295 },
+        5126: { size: 4, read: (view, at) => view.getFloat32(at, true) }
+      };
+      const componentCounts = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 };
+      function accessorData(index) {
+        const accessor = json.accessors[index];
+        if (!accessor) throw new Error("Accessor GLB tidak ditemukan.");
+        const info = componentInfo[accessor.componentType];
+        if (!info || accessor.bufferView === undefined) throw new Error("Accessor GLB tidak didukung.");
+        const view = json.bufferViews[accessor.bufferView];
+        const count = componentCounts[accessor.type];
+        if (!view || !count) throw new Error("Buffer view GLB tidak valid.");
+        const stride = view.byteStride || info.size * count;
+        const start = (view.byteOffset || 0) + (accessor.byteOffset || 0);
+        const values = new Array(accessor.count * count);
+        for (let item = 0; item < accessor.count; item++) {
+          for (let part = 0; part < count; part++) {
+            let value = info.read(binary, start + item * stride + part * info.size);
+            if (accessor.normalized && accessor.componentType !== 5126) {
+              value = accessor.componentType === 5120 || accessor.componentType === 5122
+                ? Math.max(value / info.max, -1)
+                : value / info.max;
+            }
+            values[item * count + part] = value;
+          }
+        }
+        return { values, count };
+      }
+
+      const meshes = json.meshes.map(mesh => mesh.primitives.map(primitive => {
+        if ((primitive.mode ?? 4) !== 4 || primitive.attributes.POSITION === undefined) {
+          throw new Error("Model GLB harus menggunakan geometri segitiga.");
+        }
+        const positions = accessorData(primitive.attributes.POSITION).values;
+        const normals = primitive.attributes.NORMAL === undefined
+          ? null
+          : accessorData(primitive.attributes.NORMAL).values;
+        const indices = primitive.indices === undefined
+          ? Array.from({ length: positions.length / 3 }, (_, index) => index)
+          : accessorData(primitive.indices).values;
+        const expanded = new Float32Array(indices.length * 6);
+        for (let index = 0; index < indices.length; index += 3) {
+          const a = indices[index], b = indices[index + 1], c = indices[index + 2];
+          const ax = positions[a * 3], ay = positions[a * 3 + 1], az = positions[a * 3 + 2];
+          const abx = positions[b * 3] - ax, aby = positions[b * 3 + 1] - ay, abz = positions[b * 3 + 2] - az;
+          const acx = positions[c * 3] - ax, acy = positions[c * 3 + 1] - ay, acz = positions[c * 3 + 2] - az;
+          const faceNormal = normals ? null : normalize([aby * acz - abz * acy, abz * acx - abx * acz, abx * acy - aby * acx]);
+          for (let corner = 0; corner < 3; corner++) {
+            const vertexIndex = indices[index + corner];
+            const positionOffset = vertexIndex * 3;
+            const normal = normals
+              ? null
+              : faceNormal;
+            const target = index * 6 + corner * 6;
+            expanded[target] = positions[positionOffset];
+            expanded[target + 1] = positions[positionOffset + 1];
+            expanded[target + 2] = positions[positionOffset + 2];
+            expanded[target + 3] = normals ? normals[positionOffset] : normal[0];
+            expanded[target + 4] = normals ? normals[positionOffset + 1] : normal[1];
+            expanded[target + 5] = normals ? normals[positionOffset + 2] : normal[2];
+          }
+        }
+        const boundsMin = [Infinity, Infinity, Infinity], boundsMax = [-Infinity, -Infinity, -Infinity];
+        for (let index = 0; index < positions.length; index += 3) {
+          for (let axis = 0; axis < 3; axis++) {
+            boundsMin[axis] = Math.min(boundsMin[axis], positions[index + axis]);
+            boundsMax[axis] = Math.max(boundsMax[axis], positions[index + axis]);
+          }
+        }
+        const material = json.materials?.[primitive.material];
+        const color = material?.pbrMetallicRoughness?.baseColorFactor || [0.72, 0.76, 0.8, 1];
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, expanded, gl.STATIC_DRAW);
+        return { buffer, vertexCount: expanded.length / 6, color, alpha: color[3] ?? 1, boundsMin, boundsMax };
+      }));
+
+      const instances = [];
+      const scene = json.scenes?.[json.scene || 0];
+      if (!scene) throw new Error("Scene utama GLB tidak ditemukan.");
+      function visit(nodeIndex, parentMatrix) {
+        const node = json.nodes[nodeIndex];
+        if (!node) throw new Error("Node GLB tidak valid.");
+        const worldMatrix = multiply(parentMatrix, nodeMatrix(node));
+        if (node.mesh !== undefined) {
+          instances.push({
+            name: node.name || "",
+            nodeIndex,
+            node,
+            parentMatrix,
+            matrix: worldMatrix,
+            baseMatrix: worldMatrix,
+            primitives: meshes[node.mesh]
+          });
+        }
+        for (const child of node.children || []) visit(child, worldMatrix);
+      }
+      for (const root of scene.nodes || []) visit(root, identity());
+
+      const animation = json.animations?.find(item => item.name === "Siklus Mekanisme") || json.animations?.[0];
+      const animationTracks = (animation?.channels || []).map(channel => {
+          const sampler = animation.samplers[channel.sampler];
+          const path = channel.target.path;
+          if (!sampler || !["translation", "rotation", "scale"].includes(path)) {
+            throw new Error("Track animasi GLB tidak didukung.");
+          }
+          const interpolation = sampler.interpolation || "LINEAR";
+          if (!["LINEAR", "STEP"].includes(interpolation)) {
+            throw new Error(`Interpolasi animasi GLB tidak didukung: ${interpolation}.`);
+          }
+          return {
+            nodeIndex: channel.target.node,
+            path,
+            interpolation,
+            times: accessorData(sampler.input).values,
+            values: accessorData(sampler.output).values
+          };
+        });
+      if (!animationTracks.length) throw new Error("Track animasi GLB tidak ditemukan.");
+      const animationDuration = animationTracks.reduce(
+        (duration, track) => Math.max(duration, track.times[track.times.length - 1]),
+        animation?.extras?.cycleDurationSeconds || 0
+      );
+      const boundsMin = [Infinity, Infinity, Infinity], boundsMax = [-Infinity, -Infinity, -Infinity];
+      for (const instance of instances) {
+        for (const primitive of instance.primitives) {
+          for (let mask = 0; mask < 8; mask++) {
+            const p = [
+              mask & 1 ? primitive.boundsMax[0] : primitive.boundsMin[0],
+              mask & 2 ? primitive.boundsMax[1] : primitive.boundsMin[1],
+              mask & 4 ? primitive.boundsMax[2] : primitive.boundsMin[2]
+            ];
+            const m = instance.matrix;
+            const point = [
+              m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12],
+              m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13],
+              m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]
+            ];
+            for (let axis = 0; axis < 3; axis++) {
+              boundsMin[axis] = Math.min(boundsMin[axis], point[axis]);
+              boundsMax[axis] = Math.max(boundsMax[axis], point[axis]);
+            }
+          }
+        }
+      }
+      if (!instances.length || !Number.isFinite(boundsMin[0])) throw new Error("Model GLB tidak berisi mesh untuk ditampilkan.");
+      const center = boundsMin.map((value, axis) => (value + boundsMax[axis]) / 2);
+      const extent = Math.max(...boundsMax.map((value, axis) => value - boundsMin[axis]));
+      return {
+        instances,
+        animationTracks,
+        animationDuration,
+        center,
+        fit: 2.6 / extent,
+        ySpan: boundsMax[1] - boundsMin[1]
+      };
+    }
+
+    let model = null;
+    loadGlb("model/ruang-bakar-3d.glb").then(loaded => {
+      model = loaded;
+      sceneError.style.display = "none";
+    }).catch(error => {
+      sceneError.textContent = location.protocol === "file:"
+        ? "Buka halaman lewat server lokal agar model GLB dapat dimuat. Lihat langkahnya di README.md."
+        : "Model 3D gagal dimuat: " + error.message;
+      sceneError.style.display = "flex";
+      console.error(error);
+    });
+
+    function identity() {
+      return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    }
+
+    const phaseNames = ["Langkah hisap", "Langkah kompresi", "Langkah usaha", "Langkah buang"];
+    const referenceBoreMm = 86;
+    const referenceStrokeMm = 86;
+    let bore = referenceBoreMm, stroke = referenceStrokeMm, clearance = 50, afr = 14.7, rpm = 3000;
+    let intakeDiameter = 32, exhaustDiameter = 28, cycleAngle = 0, playing = false, speed = 0.8;
+    let rotation = -0.15, elevation = 0.12, pointer = null, lastTime = 0;
+    const fields = {
+      bore: { number: document.getElementById("bore"), range: document.getElementById("boreRange"), min: 40, max: 160 },
+      stroke: { number: document.getElementById("stroke"), range: document.getElementById("strokeRange"), min: 40, max: 160 },
+      clearance: { number: document.getElementById("clearance"), range: document.getElementById("clearanceRange"), min: 2, max: 200 },
+      afr: { number: document.getElementById("afr"), range: document.getElementById("afrRange"), min: 8, max: 22 },
+      rpm: { number: document.getElementById("rpm"), range: document.getElementById("rpmRange"), min: 500, max: 10000 },
+      intakeDiameter: { number: document.getElementById("intakeDiameter"), range: document.getElementById("intakeDiameterRange"), min: 20, max: 50 },
+      exhaustDiameter: { number: document.getElementById("exhaustDiameter"), range: document.getElementById("exhaustDiameterRange"), min: 18, max: 45 }
+    };
+
+    function volumeAtAngle(angle, displacement, clearanceVolume) {
+      const radians = ((angle % 360) + 360) % 360 * Math.PI / 180;
+      const rodRatio = 3.5;
+      const travel = 1 - Math.cos(radians) + rodRatio -
+        Math.sqrt(Math.max(0, rodRatio * rodRatio - Math.sin(radians) ** 2));
+      const travelFraction = Math.max(0, Math.min(1, travel / 2));
+      return clearanceVolume + displacement * travelFraction;
+    }
+
+    function pressureAtAngle(angle, values) {
+      const cycleAngle = ((angle % 720) + 720) % 720;
+      const atmosphericPressureKpa = 101.325;
+      if (cycleAngle < 180 || cycleAngle >= 540) return atmosphericPressureKpa;
+
+      const volume = volumeAtAngle(cycleAngle, values.displacement, clearance);
+      const polytropicExponent = 1.3;
+      const compressionPressure = atmosphericPressureKpa * values.compression ** polytropicExponent;
+      if (cycleAngle < 360) {
+        return atmosphericPressureKpa * (values.totalVolume / volume) ** polytropicExponent;
+      }
+
+      const combustionPressureRiseKpa =
+        0.4 * values.usefulWork / (clearance * 1e-6) / 1000;
+      const peakPressure = compressionPressure + combustionPressureRiseKpa;
+      return peakPressure * (clearance / volume) ** polytropicExponent;
+    }
+
+    function portFlowAtAngle(angle, displacement, engineRpm, diameterMm, port) {
+      const cycleAngle = ((angle % 720) + 720) % 720;
+      const isIntake = port === "intake";
+      const isOpen = isIntake
+        ? cycleAngle < 180
+        : cycleAngle >= 540;
+      if (!isOpen) return { pressureKpa: 101.325, velocity: 0 };
+
+      const localAngle = cycleAngle * Math.PI / 180;
+      const crankAngle = localAngle % (2 * Math.PI);
+      const rodRatio = 3.5;
+      const root = Math.sqrt(Math.max(0, rodRatio ** 2 - Math.sin(crankAngle) ** 2));
+      const travelDerivative = (
+        Math.sin(crankAngle) +
+        Math.sin(crankAngle) * Math.cos(crankAngle) / Math.max(root, 1e-6)
+      ) / 2;
+      const omega = engineRpm * 2 * Math.PI / 60;
+      const volumeRate = displacement / 1e6 * Math.abs(travelDerivative) * omega;
+      const valveAngle = isIntake ? cycleAngle : cycleAngle - 540;
+      const lift = 0.0065 * Math.max(0, Math.sin(valveAngle * Math.PI / 180));
+      const diameter = diameterMm / 1000;
+      const portArea = Math.PI * diameter * diameter / 4;
+      const curtainArea = Math.min(Math.PI * diameter * lift, portArea);
+      const dischargeCoefficient = 0.72;
+      if (curtainArea <= 1e-8 || volumeRate <= 1e-8) {
+        return { pressureKpa: 101.325, velocity: 0 };
+      }
+
+      const velocity = volumeRate / curtainArea;
+      const dynamicPressureKpa = 0.5 * 1.18 * (velocity / dischargeCoefficient) ** 2 / 1000;
+      const pressureKpa = isIntake
+        ? Math.max(30, 101.325 - dynamicPressureKpa)
+        : Math.min(300, 101.325 + dynamicPressureKpa);
+      return { pressureKpa, velocity };
+    }
+
+    function calculate() {
+      const displacement = Math.PI / 4 * bore * bore * stroke / 1000;
+      const totalVolume = displacement + clearance;
+      const instantaneous = volumeAtAngle(cycleAngle, displacement, clearance);
+      const travelFraction = (instantaneous - clearance) / displacement;
+      const airMass = displacement / 1e6 * 1.18 * 0.85;
+      const fuelMass = airMass / afr;
+      const fuelEnergy = fuelMass * 44e6;
+      const usefulWork = fuelEnergy * 0.25;
+      const results = {
+        displacement,
+        totalVolume,
+        compression: totalVolume / clearance,
+        instantaneous,
+        fuelEnergy,
+        usefulWork,
+        estimatedPower: usefulWork * rpm / 120,
+        travelFraction
+      };
+      results.pressureKpa = pressureAtAngle(cycleAngle, results);
+      results.intakeFlow = portFlowAtAngle(cycleAngle, displacement, rpm, intakeDiameter, "intake");
+      results.exhaustFlow = portFlowAtAngle(cycleAngle, displacement, rpm, exhaustDiameter, "exhaust");
+      return results;
+    }
+
+    function updatePressureChart(values) {
+      const left = 22, right = 316, top = 14, bottom = 82;
+      const samples = Array.from({ length: 73 }, (_, index) => ({
+        angle: index * 10,
+        pressure: pressureAtAngle(index * 10, values)
+      }));
+      const maxPressure = Math.max(...samples.map(sample => sample.pressure), values.pressureKpa) * 1.05;
+      const point = sample => {
+        const x = left + sample.angle / 720 * (right - left);
+        const y = bottom - sample.pressure / maxPressure * (bottom - top);
+        return [x, y];
+      };
+      const path = samples.map((sample, index) => {
+        const [x, y] = point(sample);
+        return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(" ");
+      const [cursorX, cursorY] = point({
+        angle: cycleAngle,
+        pressure: values.pressureKpa
+      });
+      document.getElementById("pressureCurve").setAttribute("d", path);
+      document.getElementById("pressureCursor").setAttribute("x1", cursorX.toFixed(1));
+      document.getElementById("pressureCursor").setAttribute("x2", cursorX.toFixed(1));
+      document.getElementById("pressurePoint").setAttribute("cx", cursorX.toFixed(1));
+      document.getElementById("pressurePoint").setAttribute("cy", cursorY.toFixed(1));
+      document.getElementById("pressureScale").textContent = `${(maxPressure / 100).toFixed(0)} bar max`;
+    }
+
+    function updateMetrics() {
+      const values = calculate();
+      document.getElementById("displacement").textContent = values.displacement.toFixed(1);
+      document.getElementById("totalVolume").textContent = values.totalVolume.toFixed(1);
+      document.getElementById("compression").textContent = values.compression.toFixed(2);
+      document.getElementById("instantVolume").textContent = values.instantaneous.toFixed(1);
+      document.getElementById("fuelEnergy").textContent = (values.fuelEnergy / 1000).toFixed(2);
+      document.getElementById("usefulWork").textContent = values.usefulWork.toFixed(0);
+      document.getElementById("estimatedPower").textContent = (values.estimatedPower / 1000).toFixed(2);
+      document.getElementById("cylinderPressure").textContent = (values.pressureKpa / 100).toFixed(2);
+      document.getElementById("intakePressure").textContent = (values.intakeFlow.pressureKpa / 100).toFixed(2);
+      document.getElementById("intakeVelocity").textContent = values.intakeFlow.velocity.toFixed(1);
+      document.getElementById("exhaustPressure").textContent = (values.exhaustFlow.pressureKpa / 100).toFixed(2);
+      document.getElementById("exhaustVelocity").textContent = values.exhaustFlow.velocity.toFixed(1);
+      updatePressureChart(values);
+      const phase = Math.min(3, Math.floor(cycleAngle / 180));
+      document.getElementById("phaseTag").textContent = phaseNames[phase];
+      document.getElementById("angleTag").textContent = Math.round(cycleAngle) + "° / 720°";
+      document.querySelectorAll(".engine-step").forEach((step, index) => {
+        step.classList.toggle("active", index === phase);
+      });
+      const playButton = document.getElementById("playButton");
+      playButton.textContent = playing ? "❚❚ Jeda" : "▶ Mulai";
+      playButton.setAttribute("aria-pressed", String(playing));
+    }
+
+    for (const [key, pair] of Object.entries(fields)) {
+      pair.number.addEventListener("input", () => {
+        const value = Number(pair.number.value);
+        if (!Number.isFinite(value)) return;
+        const clamped = Math.max(pair.min, Math.min(pair.max, value));
+        if (value !== clamped) pair.number.value = String(clamped);
+        pair.range.value = String(clamped);
+        if (key === "bore") bore = clamped;
+        if (key === "stroke") stroke = clamped;
+        if (key === "clearance") clearance = clamped;
+        if (key === "afr") afr = clamped;
+        if (key === "rpm") rpm = clamped;
+        if (key === "intakeDiameter") intakeDiameter = clamped;
+        if (key === "exhaustDiameter") exhaustDiameter = clamped;
+        updateMetrics();
+      });
+      pair.number.addEventListener("change", () => {
+        const value = Number(pair.number.value);
+        if (!Number.isFinite(value) || value <= 0) pair.number.value = pair.range.value;
+        else pair.number.value = String(Math.max(pair.min, Math.min(pair.max, value)));
+        pair.number.dispatchEvent(new Event("input"));
+      });
+      pair.range.addEventListener("input", () => {
+        const value = Number(pair.range.value);
+        if (!Number.isFinite(value)) return;
+        pair.number.value = String(value);
+        if (key === "bore") bore = value;
+        if (key === "stroke") stroke = value;
+        if (key === "clearance") clearance = value;
+        if (key === "afr") afr = value;
+        if (key === "rpm") rpm = value;
+        if (key === "intakeDiameter") intakeDiameter = value;
+        if (key === "exhaustDiameter") exhaustDiameter = value;
+        updateMetrics();
+      });
+    }
+
+    const cycleState = {
+      phase: 0,
+      elapsed: 0,
+      lastTimestamp: 0
+    };
+
+    function tick(timestamp) {
+      if (playing) {
+        if (!cycleState.lastTimestamp) cycleState.lastTimestamp = timestamp;
+        const delta = (timestamp - cycleState.lastTimestamp) * speed;
+        cycleState.lastTimestamp = timestamp;
+        cycleAngle = (cycleAngle + delta * 0.12) % 720;
+      } else {
+        cycleState.lastTimestamp = timestamp;
+      }
+      updateMetrics();
+      requestAnimationFrame(tick);
+    }
+
+    document.getElementById("playButton").addEventListener("click", () => {
+      playing = !playing;
+      updateMetrics();
+    });
+
+    document.getElementById("resetButton").addEventListener("click", () => {
+      bore = 86; stroke = 86; clearance = 50; afr = 14.7; rpm = 3000;
+      intakeDiameter = 32; exhaustDiameter = 28; cycleAngle = 0; speed = 0.8; playing = false;
+      fields.bore.number.value = fields.bore.range.value = "86";
+      fields.stroke.number.value = fields.stroke.range.value = "86";
+      fields.clearance.number.value = fields.clearance.range.value = "50";
+      fields.afr.number.value = fields.afr.range.value = "14.7";
+      fields.rpm.number.value = fields.rpm.range.value = "3000";
+      fields.intakeDiameter.number.value = fields.intakeDiameter.range.value = "32";
+      fields.exhaustDiameter.number.value = fields.exhaustDiameter.range.value = "28";
+      updateMetrics();
+    });
+
+    const sceneController = {
+      pointerDown: false,
+      x: 0,
+      y: 0
+    };
+
+    function updateCamera() {
+      const cameraTarget = [0, 0, 0];
+      const cameraPosition = [
+        Math.cos(rotation) * 5.5,
+        1.6 + elevation,
+        Math.sin(rotation) * 5.5
+      ];
+      const view = lookAt(cameraPosition, cameraTarget, [0, 1, 0]);
+      const projection = perspective(Math.PI / 3.2, canvas.width / canvas.height, 0.1, 100);
+      const mvp = multiply(projection, view);
+      return mvp;
+    }
+
+    canvas.addEventListener("pointerdown", event => {
+      sceneController.pointerDown = true;
+      sceneController.x = event.clientX;
+      sceneController.y = event.clientY;
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      if (!sceneController.pointerDown) return;
+      rotation += (event.clientX - sceneController.x) * 0.01;
+      elevation += (event.clientY - sceneController.y) * 0.004;
+      sceneController.x = event.clientX;
+      sceneController.y = event.clientY;
+    });
+
+    canvas.addEventListener("pointerup", () => { sceneController.pointerDown = false; });
+    canvas.addEventListener("pointerleave", () => { sceneController.pointerDown = false; });
+
+    function renderFrame() {
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const width = canvas.width = Math.max(1, Math.floor(canvas.clientWidth * pixelRatio));
+      const height = canvas.height = Math.max(1, Math.floor(canvas.clientHeight * pixelRatio));
+      gl.viewport(0, 0, width, height);
+      gl.clearColor(0.06, 0.08, 0.1, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      if (model) {
+        const projection = perspective(Math.PI / 3.2, width / height, 0.1, 100);
+        const view = lookAt([
+          Math.cos(rotation) * 5.5,
+          1.6 + elevation,
+          Math.sin(rotation) * 5.5
+        ], [0, 0, 0], [0, 1, 0]);
+        const mvp = multiply(projection, view);
+        const modelMatrix = multiply(
+          scaling(
+            model.fit * bore / referenceBoreMm,
+            model.fit * stroke / referenceStrokeMm,
+            model.fit * bore / referenceBoreMm
+          ),
+          translation(-model.center[0], -model.center[1], -model.center[2])
+        );
+        const animationTime = model.animationDuration * cycleAngle / 720;
+
+        for (const instance of model.instances) {
+          const animatedNode = { ...instance.node };
+          for (const track of model.animationTracks) {
+            if (track.nodeIndex === instance.nodeIndex) {
+              animatedNode[track.path] = sampleAnimationTrack(track, animationTime);
+            }
+          }
+          if (animatedNode.name === "Katup masuk - bergerak" ||
+              animatedNode.name === "Piring katup masuk") {
+            const scale = intakeDiameter / 32;
+            animatedNode.scale = [scale, 1, scale];
+          } else if (animatedNode.name === "Katup buang - bergerak" ||
+                     animatedNode.name === "Piring katup buang") {
+            const scale = exhaustDiameter / 28;
+            animatedNode.scale = [scale, 1, scale];
+          }
+
+          const nodeTransform = multiply(instance.parentMatrix, nodeMatrix(animatedNode));
+          const transform = multiply(modelMatrix, nodeTransform);
+          gl.uniformMatrix4fv(locations.mvp, false, mvp);
+          gl.uniformMatrix4fv(locations.model, false, transform);
+          for (const primitive of instance.primitives) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, primitive.buffer);
+            gl.vertexAttribPointer(locations.position, 3, gl.FLOAT, false, 24, 0);
+            gl.vertexAttribPointer(locations.normal, 3, gl.FLOAT, false, 24, 12);
+            gl.enableVertexAttribArray(locations.position);
+            gl.enableVertexAttribArray(locations.normal);
+            gl.uniform3fv(locations.color, primitive.color.slice(0, 3));
+            gl.uniform3fv(locations.light, [0.7, 0.9, 1.2]);
+            gl.uniform1f(locations.alpha, primitive.alpha);
+            gl.drawArrays(gl.TRIANGLES, 0, primitive.vertexCount);
+          }
+        }
+      }
+      requestAnimationFrame(renderFrame);
+    }
+
+    updateMetrics();
+    requestAnimationFrame(renderFrame);
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>
